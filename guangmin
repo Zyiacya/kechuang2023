@@ -1,0 +1,66 @@
+#include "all.c"
+#include "tm4c123gh6pm.h"
+
+int flag=0;
+char fm[100];
+void Timer0BIntHandler(void);
+
+
+void sreen(void)
+{
+	
+
+	UC1701Init(60000);
+	UC1701Clear();
+}
+void GPIO_able(void)
+{
+	  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE,GPIO_PIN_6 ); 
+}
+void Timer (void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_WTIMER0);
+//InitConsole();
+//输出初始化信息
+
+    TimerConfigure(WTIMER0_BASE,TIMER_CFG_PERIODIC_UP);
+//配置定时器装载值
+    TimerLoadSet(WTIMER0_BASE, TIMER_A, SysCtlClockGet()/100-1);
+//使能中断 
+    IntPrioritySet(INT_WTIMER0A,0x00);
+
+    IntMasterEnable();
+//配置 TIMER0B 中断事件为定时器超时
+    TimerIntEnable(WTIMER0_BASE, TIMER_TIMA_TIMEOUT);
+//使能 NVIC 中的 TIMER0B 中断
+    IntEnable(INT_WTIMER0A);
+//为定时器中断指定中断处理函数
+    TimerIntRegister(WTIMER0_BASE,TIMER_A,Timer0BIntHandler);
+    TimerEnable(WTIMER0_BASE, TIMER_A);
+}
+void Timer0BIntHandler(void)
+{  
+	IntMasterDisable();
+	//清除定时器中断标志
+   static uint32_t time_count=0;
+	
+    uint32_t status=TimerIntStatus( WTIMER0_BASE,  true);
+	TimerIntClear( WTIMER0_BASE,  status);
+	flag=GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_6 );
+		sprintf(fm,"%d",flag);
+	UC1701CharDispaly(0,0,fm);	
+	IntMasterEnable();
+}
+int main()
+{
+ sreen();
+Timer ();
+GPIO_able();
+	SysCtlClockSet(SYSCTL_SYSDIV_5|SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ);
+	
+	while (1){
+	}
+}
+
+
