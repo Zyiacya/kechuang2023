@@ -1,0 +1,134 @@
+#include "all.c"
+#include "tm4c123gh6pm.h"
+
+#define dht11_high GPIOPinWrite(GPIO_PORTB_BASE,GPIO_PIN_6,0xFF);
+#define dht11_low GPIOPinWrite(GPIO_PORTB_BASE,GPIO_PIN_6,0);
+#define Read_Data GPIOPinRead(GPIO_PORTB_BASE,GPIO_PIN_6)
+unsigned int rec_data[4];
+
+void error(void)
+{
+    char fm[100];
+	int a=404;
+	sprintf(fm,"%d",a);
+	UC1701Init(60000);
+	UC1701Clear();
+	UC1701CharDispaly(0,0,fm);	//共16列 4行
+    SysCtlDelay(SysCtlClockGet()/3000*10000);
+}
+void GPIO_OUTable(void)
+{
+     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE,GPIO_PIN_6 ); 
+}
+void GPIO_INable(void)
+{
+     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE,GPIO_PIN_6 ); 
+}
+
+void DHT11_Start(void)
+{
+	GPIO_OUTable(); //输出模式
+	
+	dht11_low; //拉低电平至少18us
+	SysCtlDelay(SysCtlClockGet()/3000*20);
+	
+	dht11_high; //拉高电平20~40us
+	SysCtlDelay(SysCtlClockGet()/3000*20);
+	
+	GPIO_INable(); //输入模式
+}
+
+char DHT11_Rec_Byte(void)
+{
+	unsigned char i = 0;
+	unsigned char data;
+	
+	for(i=0;i<8;i++) //1个数据就是1个字节byte，1个字节byte有8位bit
+	{
+		while( Read_Data == 0); //从1bit开始，低电平变高电平，等待低电平结束
+			SysCtlDelay(SysCtlClockGet()/3000*40);
+		
+		data <<= 1; //左移
+		
+		if( Read_Data == 64 ) //如果过了30us还是高电平的话就是数据1
+		{
+			data |= 1; //数据+1
+		}
+		
+		while( Read_Data == 64 ); //高电平变低电平，等待高电平结束
+    }
+
+	
+	return data;
+}
+void DHT11_REC_Data(void)
+{
+	unsigned int R_H,R_L,T_H,T_L;
+	unsigned char RH,RL,TH,TL,CHECK;
+	
+	DHT11_Start(); //主机发送信号
+	dht11_high; //拉高电平
+	
+	if( Read_Data == 0 ) //判断DHT11是否响应
+	{
+		while( Read_Data == 0); //低电平变高电平，等待低电平结束
+		while( Read_Data == 64); //高电平变低电平，等待高电平结束
+		
+		R_H = DHT11_Rec_Byte();
+		R_L = DHT11_Rec_Byte();
+		T_H = DHT11_Rec_Byte();
+		T_L = DHT11_Rec_Byte();
+		CHECK = DHT11_Rec_Byte(); //接收5个数据
+		
+		dht11_low; //当最后一bit数据传送完毕后，DHT11拉低总线 50us
+		SysCtlDelay(SysCtlClockGet()/3000*55); //这里延时55us
+		dht11_high; //随后总线由上拉电阻拉高进入空闲状态。
+        
+    }
+    else	
+    {
+        error();
+    }
+		if(R_H + R_L + T_H + T_L == CHECK) //和检验位对比，判断校验接收到的数据是否正确
+		{
+			RH = R_H;
+			RL = R_L;
+			TH = T_H;
+			TL = T_L;
+		
+	
+	rec_data[0] = RH;
+	rec_data[1] = RL;
+	rec_data[2] = TH;
+	rec_data[3] = TL;
+        }
+        else 
+        {
+    error();
+        }
+    }
+
+int main(void)
+{
+	SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_XTAL_16MHZ|SYSCTL_USE_PLL | SYSCTL_OSC_MAIN);
+    GPIOPinWrite(GPIO_PORTB_BASE,GPIO_PIN_6,0xFF);
+	while(1)
+	{
+		SysCtlDelay(SysCtlClockGet()/3000*1000); //这里延时55us
+		DHT11_REC_Data(); //接收温度和湿度的数据
+		
+
+	char fm1[100];
+    char fm2[100];
+	sprintf(fm1,"%d",rec_data[0]);
+	sprintf(fm2,"%d",rec_data[2]);	
+	UC1701Init(60000);
+	UC1701Clear();
+	UC1701CharDispaly(0,0,fm1);	//共16列 4行
+    UC1701CharDispaly(1,0,fm2);	//共16列 4行
+	SysCtlDelay(SysCtlClockGet()/3000*1000); 
+}
+
+	}
