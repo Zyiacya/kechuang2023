@@ -1,0 +1,113 @@
+#include "timer.h"
+#include "math.h"
+#include "adc.h"
+#include "usart.h"	
+
+extern int max,min,i,flag;
+
+
+void findmax(int j)
+{
+
+ if(j>max || max==-1)
+		max=j;
+	
+}
+
+void findmin(int j)
+{
+
+ if(j<max || min==-1)
+		min=j;
+	
+}
+
+
+void TIM3_Int_Init(u16 arr,u16 psc)
+{
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+//	NVIC_InitTypeDef NVIC_InitStructure;
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3,ENABLE);				//使能TIM3上的APB1时钟
+
+	
+	TIM_TimeBaseInitStruct.TIM_Prescaler=psc;						//TIM3的定时器分频系数
+	TIM_TimeBaseInitStruct.TIM_CounterMode=TIM_CounterMode_Up;		//TIM3为向下计数方式
+	TIM_TimeBaseInitStruct.TIM_Period=arr;							//TIM3的自动重装载值
+	TIM_TimeBaseInitStruct.TIM_ClockDivision=TIM_CKD_DIV1;			//时钟分频因子
+	TIM_TimeBaseInit(TIM3,&TIM_TimeBaseInitStruct);
+	
+//	TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_Update);			//定时器2更新触发DAC
+	TIM_ITConfig(TIM3,TIM_IT_Update,ENABLE);
+	TIM_SelectOutputTrigger(TIM3,TIM_TRGOSource_Update);
+	TIM_Cmd(TIM3,ENABLE);
+	
+   
+//	
+//	
+//	NVIC_InitStructure.NVIC_IRQChannel=TIM3_IRQn;                   				//选择TIM3的定时器中断
+//	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority=0x03;      			//抢占优先级为3
+//	NVIC_InitStructure.NVIC_IRQChannelSubPriority=0x02;							//子优先级为2
+//	NVIC_InitStructure.NVIC_IRQChannelCmd=ENABLE;					
+//	NVIC_Init(&NVIC_InitStructure);
+//	
+//	TIM_Cmd(TIM3,ENABLE);											//使能定时器3
+	
+}
+
+//void TIM3_IRQHandler(void)
+//{
+//	if(TIM_GetFlagStatus(TIM3,TIM_IT_Update)==SET)
+//	{
+//		
+//		i=Get_Adc(ADC_Channel_5);
+//    findmax(i);
+//		findmin(i);
+//		flag++;
+//		TIM_ClearITPendingBit(TIM3,TIM_IT_Update);
+//	}
+//}
+
+
+void TIM4_Int_Init(u16 arr,u16 psc)
+{
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+		NVIC_InitTypeDef NVIC_InitStructure;
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4,ENABLE);				//使能TIM3上的APB1时钟
+
+	//TIM_SelectOnePulseMode(TIM4,TIM_OPMode_Single);
+	TIM_SelectInputTrigger(TIM4, TIM_TS_ITR2);
+	TIM_SelectSlaveMode(TIM4, TIM_SlaveMode_Trigger);
+	
+	TIM_TimeBaseInitStruct.TIM_Prescaler=psc;						//TIM3的定时器分频系数
+	TIM_TimeBaseInitStruct.TIM_CounterMode=TIM_CounterMode_Up;		//TIM3为向下计数方式
+	TIM_TimeBaseInitStruct.TIM_Period=arr;							//TIM3的自动重装载值
+	TIM_TimeBaseInitStruct.TIM_ClockDivision=TIM_CKD_DIV1;			//时钟分频因子
+	TIM_TimeBaseInit(TIM4,&TIM_TimeBaseInitStruct);
+	
+//	TIM_SelectOutputTrigger(TIM4, TIM_TRGOSource_Update);			//定时器2更新触发DAC
+  TIM_SelectInputTrigger(TIM4, TIM_TS_ITR2);
+	TIM_SelectSlaveMode(TIM4, TIM_SlaveMode_External1);
+	
+	TIM_ITConfig(TIM4,TIM_IT_Update,ENABLE);
+	
+	
+	NVIC_InitStructure.NVIC_IRQChannel=TIM4_IRQn;                   				//选择TIM3的定时器中断
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority=0x02;      			//抢占优先级为3
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority=0x01;							//子优先级为2
+	NVIC_InitStructure.NVIC_IRQChannelCmd=ENABLE;					
+	NVIC_Init(&NVIC_InitStructure);
+			TIM_Cmd(TIM4,ENABLE);									//使能定时器3
+	
+}
+void TIM4_IRQHandler(void)
+{
+	if(TIM_GetFlagStatus(TIM4,TIM_IT_Update)==SET)
+	{
+
+		if (GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_9)!=0)
+		GPIO_ResetBits(GPIOF,GPIO_Pin_9 | GPIO_Pin_10);//GPIOF9,F10设置高，灯灭
+		else 
+		GPIO_SetBits(GPIOF,GPIO_Pin_9 | GPIO_Pin_10);//GPIOF9,F10设置高，灯灭	
+		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
+	}
+}
